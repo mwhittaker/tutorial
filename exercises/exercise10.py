@@ -92,25 +92,29 @@ if __name__ == "__main__":
 
       self.sess.run(init)
 
+      self.variables = ray.experimental.TensorFlowVariables(self.loss, self.sess)
+
     def set_weights(self, weights):
-      raise NotImplementedError
+      self.variables.set_weights(weights)
 
     def get_weights(self):
-      raise NotImplementedError
+      return self.variables.get_weights()
 
   # Create a few actors with the model.
   actors = [SimpleModel.remote() for _ in range(4)]
 
   # Get the weights from the actors.
-  # EXERCISE: FILL THIS IN.
-  raise Exception("Implement this.")
+  weights = ray.get([actor.get_weights.remote() for actor in actors])
 
   # Average the weights.
-  # EXERCISE: FILL THIS IN.
-  raise Exception("Implement this.")
+  avg_weights = {
+      "Variable": np.average([w["Variable"] for w in weights]),
+      "Variable_1": np.average([w["Variable_1"] for w in weights])
+  }
 
   # Set the average weights on the actors.
   # EXERCISE: FILL THIS IN.
-  raise Exception("Implement this.")
+  for actor in actors:
+    actor.set_weights.remote(avg_weights)
 
   print("Success! The example ran to completion.")

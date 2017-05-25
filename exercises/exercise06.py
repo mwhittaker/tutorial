@@ -39,7 +39,8 @@ if __name__ == "__main__":
 
   # Get the results.
   results = []
-  for result_id in result_ids:
+  for _ in range(len(result_ids)):
+    [result_id], result_ids = ray.wait(result_ids)
     result = ray.get(result_id)
     results.append(result)
     print("Processing result which finished after {} seconds."

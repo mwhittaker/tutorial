@@ -30,6 +30,7 @@ import numpy as np
 import ray
 import tensorflow as tf
 import time
+import os
 
 
 if __name__ == "__main__":
@@ -43,11 +44,14 @@ if __name__ == "__main__":
 
   # This is a class with a simple neural net. Make this an actor and make it
   # require a single GPU.
+  @ray.remote(num_gpus=1)
   class Network(object):
     def __init__(self, x, y):
       # You should be able to access the GPU IDs in here, and set
       # CUDA_VISIBLE_DEVICES appropriately to control which GPUs TensorFlow
       # uses.
+      os.environ['CUDA_VISIBLE_DEVICES'] = ','.join([str(i) for i in ray.get_gpu_ids()])
+
       assert len(ray.get_gpu_ids()) == 1
       with tf.device("/cpu:0"):
         # NOTE: We create each network inside a separate graph. Doing this can
@@ -103,18 +107,20 @@ if __name__ == "__main__":
   # and put in the object store. In order to place them in the object store
   # only once, you can use call ray.put on the objects and pass the resulting
   # object IDs into the Network constructor.
-  actors = [Network(x_data, y_data) for _ in range(4)]
+  x_data_id = ray.put(x_data)
+  y_data_id = ray.put(y_data)
+  actors = [Network.remote(x_data_id, y_data_id) for _ in range(4)]
 
   # Get the weights of the first actor.
-  weights = actors[0].get_weights()
+  weights = actors[0].get_weights.remote()
 
   # Do a training step on each actor.
-  [actor.step(weights) for actor in actors]
+  [actor.step.remote(weights) for actor in actors]
 
   # Check that the GPU IDs are different.
   gpu_ids = []
   for actor in actors:
-    gpu_ids += actor.get_gpu_ids()
+    gpu_ids += ray.get(actor.get_gpu_ids.remote())
   assert set(gpu_ids) == set(range(4))
 
   print("Success! The example ran to completion.")

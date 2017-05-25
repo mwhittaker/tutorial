@@ -31,6 +31,7 @@ import time
 if __name__ == "__main__":
   ray.init(num_cpus=4, redirect_output=True)
 
+  @ray.remote
   class Foo(object):
     def __init__(self):
       self.counter = 0
@@ -41,8 +42,8 @@ if __name__ == "__main__":
       return self.counter
 
   # Create two Foo objects.
-  f1 = Foo()
-  f2 = Foo()
+  f1 = Foo.remote()
+  f2 = Foo.remote()
 
   # Sleep a little to improve the accuracy of the timing measurements below.
   time.sleep(2.0)
@@ -54,8 +55,9 @@ if __name__ == "__main__":
   # makes sense to use actors.
   results = []
   for _ in range(5):
-    results.append(f1.increment())
-    results.append(f2.increment())
+    results.append(f1.increment.remote())
+    results.append(f2.increment.remote())
+  results = ray.get(results)
 
   end_time = time.time()
   duration = end_time - start_time
